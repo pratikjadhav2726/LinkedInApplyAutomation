@@ -1,13 +1,131 @@
+# Project specific files
 failedRemote.csv
 outputRemote.csv
 unprepared_questions.csv
-.idea/
-**/__pycache__/
-chrome_bot/
-.vscode/
 failed.csv
 output.csv
 config.yaml
-resume_update.py
-.env
 config.prod.yaml
+resume_update.py
+
+# Environment and secrets
+.env
+.env.local
+.env.production
+.env.staging
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Python
+**/__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.env/
+.venv/
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.python-version
+
+# UV specific
+.uv_cache/
+uv.lock.bak
+
+# IDEs and editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+*.sublime-project
+*.sublime-workspace
+
+# OS specific
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*.tmp
+*.temp
+
+# Logs and databases
+*.log
+*.db
+*.sqlite
+*.sqlite3
+
+# Testing
+.coverage
+.pytest_cache/
+.tox/
+.nox/
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+htmlcov/
+
+# Documentation
+docs/_build/
+.readthedocs.yml
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Browser automation
+chrome_bot/
+selenium-debug.log
+geckodriver.log
+chromedriver.log
+
+# Output and data files
+output/
+downloads/
+uploads/
+data/
+logs/
+screenshots/
+*.csv
+*.xlsx
+*.json
+!sample_*.pdf
+!sample_*.docx
+!sample_*.txt
+
+# Backup files
+*.backup
+*.bak
+*.orig
+requirements.txt.backup
+pyproject.toml.backup

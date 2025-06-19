@@ -46,10 +46,67 @@ This project automates the job application process on LinkedIn Easy Apply and ex
 ## 📦 Getting Started
 
 1. Clone the repository
-2. Configure `config.yaml` with your details (LinkedIn credentials, resume path, etc.)
-3. Run the bot using your preferred driver (e.g., Chrome WebDriver)
-4. Ensure Ollama and the `phi4-mini` model are running locally
-5. Ensure you have Groq API Key in .env file.
+2. Install dependencies using UV (recommended) or pip
+3. Configure `config.yaml` with your details (LinkedIn credentials, resume path, etc.)
+4. Run the bot using your preferred driver (e.g., Chrome WebDriver)
+5. Ensure Ollama and the `phi4-mini` model are running locally
+6. Ensure you have Groq API Key in .env file.
+
+## 🚀 Installation & Usage with UV (Recommended)
+
+This project uses [UV](https://docs.astral.sh/uv/) for fast and reliable dependency management.
+
+### Prerequisites
+- Python 3.9 or higher
+- UV package manager ([install UV](https://docs.astral.sh/uv/getting-started/installation/))
+
+### Quick Setup
+```bash
+# Clone the repository
+git clone https://github.com/pratikjadhav2726/LinkedInEasyApplyBot.git
+cd LinkedInEasyApplyBot
+
+# Install all dependencies
+uv sync
+
+# Run the bot
+uv run python main.py
+```
+
+### Common UV Commands
+```bash
+# Install dependencies
+uv sync
+
+# Add a new dependency
+uv add package-name
+
+# Add a development dependency
+uv add --dev package-name
+
+# Remove a dependency
+uv remove package-name
+
+# Run the project
+uv run python main.py
+
+# Run with script entry point
+uv run linkedin-bot
+
+# Update dependencies
+uv lock --upgrade
+```
+
+### Key Files
+- `pyproject.toml` - Project configuration and dependencies
+- `uv.lock` - Lock file with exact versions of all dependencies
+- `requirements.txt.backup` - Backup of the original requirements.txt
+
+### Benefits of UV
+- **⚡ Fast**: Much faster than pip for dependency resolution and installation
+- **🔒 Reliable**: Lockfile ensures reproducible builds across environments
+- **📦 Modern**: Uses standard pyproject.toml configuration
+- **🛠️ All-in-one**: Handles virtual environments, dependencies, and project management
 
 ## ⚙️ AI Capabilities
 
