@@ -18,6 +18,8 @@ import requests
 import json
 import ollama
 from litellm import completion
+from dotenv import load_dotenv
+load_dotenv()  # Load environment variables from .env file
 # import traceback # Ensure traceback is imported if used, it was added above.
 
 class AIResponseGenerator:
@@ -255,7 +257,7 @@ class AIResponseGenerator:
                 user_content += f"\n\nSelect the most appropriate answer by providing its index number from these options:\n{options_text}"
 
             response = completion(
-                model=self.model_name,
+                model="gemini/gemini-2.0-flash",
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_content}
@@ -342,7 +344,7 @@ class AIResponseGenerator:
                 system_prompt += """Return only APPLY or SKIP."""
 
             response = completion(
-                model=self.model_name,
+                model="groq/gemma2-9b-it",
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": f"Job: {job_title}\n{job_description}\n\nCandidate:\n{context}"}
