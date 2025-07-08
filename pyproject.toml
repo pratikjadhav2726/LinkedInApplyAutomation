@@ -37,6 +37,8 @@ dependencies = [
     "docx",
     "litellm",
     "PyPDF2",
+    "flask>=3.0.0",
+    "psutil",
 ]
 
 [tool.hatch.build.targets.wheel]

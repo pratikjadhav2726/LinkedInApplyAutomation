@@ -10,3 +10,5 @@ docx2pdf
 docx
 litellm
 PyPDF2
+flask>=3.0.0
+psutil

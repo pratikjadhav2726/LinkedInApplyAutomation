@@ -1,0 +1,282 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - LinkedIn Easy Apply Bot{% endblock %}
+
+{% block content %}
+<div class="hero-section text-center">
+    <div class="container">
+        <h1 class="display-4 fw-bold mb-3">
+            <i class="bi bi-robot"></i> LinkedIn Easy Apply Bot
+        </h1>
+        <p class="lead">Automate your job applications with AI-powered intelligence</p>
+        <div class="row justify-content-center mt-4">
+            <div class="col-auto">
+                {% if status.running %}
+                <span class="badge bg-success fs-6 px-3 py-2">
+                    <i class="bi bi-play-circle-fill"></i> Bot is Running
+                </span>
+                {% else %}
+                <span class="badge bg-secondary fs-6 px-3 py-2">
+                    <i class="bi bi-stop-circle-fill"></i> Bot is Stopped
+                </span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid">
+    <!-- Quick Stats Row -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <div class="feature-icon mx-auto bg-primary">
+                        <i class="bi bi-gear-fill text-white"></i>
+                    </div>
+                    <h5 class="card-title">Configuration</h5>
+                    <p class="card-text text-muted">Set up your credentials and preferences</p>
+                    <a href="{{ url_for('configure') }}" class="btn btn-gradient">
+                        <i class="bi bi-gear"></i> Configure
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <div class="feature-icon mx-auto bg-success">
+                        <i class="bi bi-download text-white"></i>
+                    </div>
+                    <h5 class="card-title">Dependencies</h5>
+                    <p class="card-text text-muted">Install required packages automatically</p>
+                    <a href="{{ url_for('install_deps') }}" class="btn btn-success">
+                        <i class="bi bi-download"></i> Install
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    {% if status.running %}
+                    <div class="feature-icon mx-auto bg-warning">
+                        <i class="bi bi-stop-circle-fill text-white"></i>
+                    </div>
+                    <h5 class="card-title">Stop Bot</h5>
+                    <p class="card-text text-muted">Stop the currently running automation</p>
+                    <a href="{{ url_for('stop_automation') }}" class="btn btn-warning">
+                        <i class="bi bi-stop-circle"></i> Stop
+                    </a>
+                    {% else %}
+                    <div class="feature-icon mx-auto bg-success">
+                        <i class="bi bi-play-circle-fill text-white"></i>
+                    </div>
+                    <h5 class="card-title">Start Bot</h5>
+                    <p class="card-text text-muted">Begin automated job applications</p>
+                    <a href="{{ url_for('start_automation') }}" class="btn btn-success">
+                        <i class="bi bi-play-circle"></i> Start
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <div class="feature-icon mx-auto bg-info">
+                        <i class="bi bi-activity text-white"></i>
+                    </div>
+                    <h5 class="card-title">Monitor</h5>
+                    <p class="card-text text-muted">View real-time logs and status</p>
+                    <a href="{{ url_for('monitor') }}" class="btn btn-info">
+                        <i class="bi bi-activity"></i> Monitor
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Configuration Overview -->
+    <div class="row">
+        <div class="col-lg-8 mb-4">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-info-circle"></i> Current Configuration Overview
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="fw-bold text-primary">Account Settings</h6>
+                            <ul class="list-unstyled">
+                                <li><strong>Email:</strong> 
+                                    {% if config.email and config.email != 'email@domain.com' %}
+                                        <span class="text-success">✓ Configured</span>
+                                    {% else %}
+                                        <span class="text-warning">⚠ Not Set</span>
+                                    {% endif %}
+                                </li>
+                                <li><strong>Password:</strong> 
+                                    {% if config.password and config.password != 'yourpassword' %}
+                                        <span class="text-success">✓ Configured</span>
+                                    {% else %}
+                                        <span class="text-warning">⚠ Not Set</span>
+                                    {% endif %}
+                                </li>
+                                <li><strong>OpenAI API:</strong> 
+                                    {% if config.openaiApiKey and config.openaiApiKey != 'sk-proj-your-openai-api-key' %}
+                                        <span class="text-success">✓ Configured</span>
+                                    {% else %}
+                                        <span class="text-info">Optional</span>
+                                    {% endif %}
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="fw-bold text-primary">Job Search</h6>
+                            <ul class="list-unstyled">
+                                <li><strong>Positions:</strong> {{ config.positions|length }} configured</li>
+                                <li><strong>Locations:</strong> {{ config.locations|length }} configured</li>
+                                <li><strong>Remote Jobs:</strong> 
+                                    {% if config.remote %}
+                                        <span class="text-success">Enabled</span>
+                                    {% else %}
+                                        <span class="text-muted">Disabled</span>
+                                    {% endif %}
+                                </li>
+                                <li><strong>Distance:</strong> {{ config.distance }} miles</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <h6 class="fw-bold text-primary">Resume & Files</h6>
+                            <ul class="list-unstyled">
+                                <li><strong>Resume:</strong> {{ config.uploads.resume }}</li>
+                                <li><strong>Text Resume:</strong> {{ config.textResume }}</li>
+                                <li><strong>DOCX Resume:</strong> {{ config.docxResume }}</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="fw-bold text-primary">AI Features</h6>
+                            <ul class="list-unstyled">
+                                <li><strong>Job Fit Evaluation:</strong> 
+                                    {% if config.evaluateJobFit %}
+                                        <span class="text-success">Enabled</span>
+                                    {% else %}
+                                        <span class="text-muted">Disabled</span>
+                                    {% endif %}
+                                </li>
+                                <li><strong>Resume Tailoring:</strong> 
+                                    {% if config.tailorResume %}
+                                        <span class="text-success">Enabled</span>
+                                    {% else %}
+                                        <span class="text-muted">Disabled</span>
+                                    {% endif %}
+                                </li>
+                                <li><strong>Model:</strong> {{ config.modelName }}</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4 mb-4">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-clock-history"></i> Recent Activity
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if status.start_time %}
+                    <p><strong>Last Started:</strong><br>
+                       <small class="text-muted">{{ status.start_time }}</small></p>
+                    {% endif %}
+                    
+                    {% if status.logs %}
+                    <p><strong>Recent Log Entries:</strong></p>
+                    <div style="max-height: 200px; overflow-y: auto;">
+                        {% for log in status.logs[-5:] %}
+                        <div class="log-entry">
+                            <small class="text-muted">{{ log.timestamp.split('T')[1].split('.')[0] }}</small><br>
+                            {{ log.message[:100] }}{% if log.message|length > 100 %}...{% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <a href="{{ url_for('monitor') }}" class="btn btn-sm btn-outline-primary">View All Logs</a>
+                    {% else %}
+                    <p class="text-muted">No recent activity</p>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Quick Tips -->
+            <div class="card mt-3">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-lightbulb"></i> Quick Tips
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled">
+                        <li class="mb-2">
+                            <i class="bi bi-check-circle text-success"></i>
+                            Configure your LinkedIn credentials first
+                        </li>
+                        <li class="mb-2">
+                            <i class="bi bi-check-circle text-success"></i>
+                            Upload your resume files
+                        </li>
+                        <li class="mb-2">
+                            <i class="bi bi-check-circle text-success"></i>
+                            Set target positions and locations
+                        </li>
+                        <li class="mb-2">
+                            <i class="bi bi-check-circle text-success"></i>
+                            Install dependencies before starting
+                        </li>
+                        <li class="mb-2">
+                            <i class="bi bi-shield-check text-warning"></i>
+                            Keep your config.yaml file private
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Warning Notice -->
+    <div class="row">
+        <div class="col-12">
+            <div class="alert alert-warning" role="alert">
+                <h6 class="alert-heading">
+                    <i class="bi bi-exclamation-triangle-fill"></i> Important Notice
+                </h6>
+                <p class="mb-0">
+                    This tool is for educational and personal use only. Please use responsibly and in accordance with LinkedIn's terms of service. 
+                    Always review and customize your applications before submission.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Auto-refresh status every 10 seconds if bot is running
+if ({{ status.running|tojson }}) {
+    setInterval(function() {
+        location.reload();
+    }, 10000);
+}
+</script>
+{% endblock %}

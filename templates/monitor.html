@@ -1,0 +1,444 @@
+{% extends "base.html" %}
+
+{% block title %}Monitor - LinkedIn Easy Apply Bot{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-activity"></i> Automation Monitor</h2>
+    <div class="btn-group" role="group">
+        {% if status.running %}
+        <a href="{{ url_for('stop_automation') }}" class="btn btn-warning">
+            <i class="bi bi-stop-circle"></i> Stop Automation
+        </a>
+        {% else %}
+        <a href="{{ url_for('start_automation') }}" class="btn btn-success">
+            <i class="bi bi-play-circle"></i> Start Automation
+        </a>
+        {% endif %}
+        <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back to Dashboard
+        </a>
+    </div>
+</div>
+
+<!-- Status Overview -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                {% if status.running %}
+                <div class="feature-icon mx-auto bg-success mb-3">
+                    <i class="bi bi-play-circle-fill text-white"></i>
+                </div>
+                <h5 class="card-title text-success">Running</h5>
+                <p class="card-text">Bot is actively applying to jobs</p>
+                {% else %}
+                <div class="feature-icon mx-auto bg-secondary mb-3">
+                    <i class="bi bi-stop-circle-fill text-white"></i>
+                </div>
+                <h5 class="card-title text-secondary">Stopped</h5>
+                <p class="card-text">Bot is not running</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <div class="feature-icon mx-auto bg-info mb-3">
+                    <i class="bi bi-clock-history text-white"></i>
+                </div>
+                <h5 class="card-title">Start Time</h5>
+                <p class="card-text" id="startTime">
+                    {% if status.start_time %}
+                        {{ status.start_time.split('T')[0] }}<br>
+                        <small>{{ status.start_time.split('T')[1].split('.')[0] }}</small>
+                    {% else %}
+                        Not started
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <div class="feature-icon mx-auto bg-primary mb-3">
+                    <i class="bi bi-list-ul text-white"></i>
+                </div>
+                <h5 class="card-title">Log Entries</h5>
+                <p class="card-text" id="logCount">{{ status.logs|length }}</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <div class="feature-icon mx-auto bg-warning mb-3">
+                    <i class="bi bi-stopwatch text-white"></i>
+                </div>
+                <h5 class="card-title">Uptime</h5>
+                <p class="card-text" id="uptime">
+                    {% if status.running and status.start_time %}
+                        <span class="uptime-counter" data-start="{{ status.start_time }}">Calculating...</span>
+                    {% else %}
+                        Not running
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Control Panel -->
+<div class="card mb-4">
+    <div class="card-header bg-light">
+        <h5 class="mb-0"><i class="bi bi-gear"></i> Control Panel</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="d-grid gap-2">
+                    {% if status.running %}
+                    <button class="btn btn-warning btn-lg" onclick="stopAutomation()">
+                        <i class="bi bi-stop-circle"></i> Stop Automation
+                    </button>
+                    {% else %}
+                    <button class="btn btn-success btn-lg" onclick="startAutomation()">
+                        <i class="bi bi-play-circle"></i> Start Automation
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="d-grid gap-2">
+                    <button class="btn btn-info" onclick="refreshLogs()">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh Logs
+                    </button>
+                    <button class="btn btn-outline-secondary" onclick="clearLogs()">
+                        <i class="bi bi-trash"></i> Clear Display
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <hr>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="autoRefresh" checked>
+                    <label class="form-check-label" for="autoRefresh">
+                        Auto-refresh logs every 3 seconds
+                    </label>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="autoScroll" checked>
+                    <label class="form-check-label" for="autoScroll">
+                        Auto-scroll to latest logs
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Live Logs -->
+<div class="card">
+    <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-terminal"></i> Live Logs</h5>
+        <div class="btn-group btn-group-sm" role="group">
+            <button type="button" class="btn btn-outline-light btn-sm" onclick="exportLogs()">
+                <i class="bi bi-download"></i> Export
+            </button>
+            <button type="button" class="btn btn-outline-light btn-sm" onclick="toggleFullscreen()">
+                <i class="bi bi-fullscreen"></i> Fullscreen
+            </button>
+        </div>
+    </div>
+    <div class="card-body p-0" style="background-color: #1e1e1e;">
+        <div id="logContainer" style="height: 400px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 0.875rem;">
+            <div id="logContent" class="p-3">
+                {% if status.logs %}
+                    {% for log in status.logs %}
+                    <div class="log-line mb-1" data-timestamp="{{ log.timestamp }}">
+                        <span class="text-info">[{{ log.timestamp.split('T')[1].split('.')[0] }}]</span>
+                        <span class="text-light">{{ log.message }}</span>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-muted p-3">No logs available. Start the automation to see live logs.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="card-footer bg-light">
+        <div class="row">
+            <div class="col-md-6">
+                <small class="text-muted">
+                    <i class="bi bi-info-circle"></i> 
+                    Logs update automatically every 3 seconds when automation is running
+                </small>
+            </div>
+            <div class="col-md-6 text-end">
+                <small class="text-muted">
+                    Last updated: <span id="lastUpdated">{{ status.logs[-1].timestamp.split('T')[1].split('.')[0] if status.logs else 'Never' }}</span>
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Stats -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="bi bi-bar-chart"></i> Session Statistics</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-3">
+                        <h6 class="text-muted">Total Log Entries</h6>
+                        <h4 id="totalLogs">{{ status.logs|length }}</h4>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted">Error Messages</h6>
+                        <h4 id="errorCount" class="text-danger">
+                            {{ status.logs|selectattr('message', 'search', '[Ee]rror|[Ff]ailed|[Ee]xception')|list|length }}
+                        </h4>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted">Success Messages</h6>
+                        <h4 id="successCount" class="text-success">
+                            {{ status.logs|selectattr('message', 'search', '[Ss]uccess|[Cc]ompleted|[Aa]pplied')|list|length }}
+                        </h4>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted">Status</h6>
+                        <h4 id="currentStatus" class="{% if status.running %}text-success{% else %}text-secondary{% endif %}">
+                            {% if status.running %}Active{% else %}Inactive{% endif %}
+                        </h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let autoRefreshInterval;
+let lastLogCount = {{ status.logs|length }};
+
+// Auto-refresh functionality
+function startAutoRefresh() {
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+    }
+    
+    autoRefreshInterval = setInterval(function() {
+        if (document.getElementById('autoRefresh').checked) {
+            refreshLogs();
+        }
+    }, 3000);
+}
+
+// Refresh logs from server
+function refreshLogs() {
+    fetch('/api/logs')
+        .then(response => response.json())
+        .then(data => {
+            updateLogDisplay(data.logs);
+            updateStats(data.logs);
+        })
+        .catch(error => {
+            console.error('Error fetching logs:', error);
+        });
+}
+
+// Update log display
+function updateLogDisplay(logs) {
+    const logContent = document.getElementById('logContent');
+    const autoScroll = document.getElementById('autoScroll').checked;
+    const shouldScroll = autoScroll && logs.length > lastLogCount;
+    
+    // Clear existing logs
+    logContent.innerHTML = '';
+    
+    if (logs.length === 0) {
+        logContent.innerHTML = '<div class="text-muted p-3">No logs available. Start the automation to see live logs.</div>';
+    } else {
+        logs.forEach(log => {
+            const logLine = document.createElement('div');
+            logLine.className = 'log-line mb-1';
+            logLine.setAttribute('data-timestamp', log.timestamp);
+            
+            // Determine log level styling
+            let messageClass = 'text-light';
+            if (log.message.match(/error|failed|exception/i)) {
+                messageClass = 'text-danger';
+            } else if (log.message.match(/success|completed|applied/i)) {
+                messageClass = 'text-success';
+            } else if (log.message.match(/warning|warn/i)) {
+                messageClass = 'text-warning';
+            } else if (log.message.match(/info|starting|loading/i)) {
+                messageClass = 'text-info';
+            }
+            
+            logLine.innerHTML = `
+                <span class="text-info">[${log.timestamp.split('T')[1].split('.')[0]}]</span>
+                <span class="${messageClass}">${escapeHtml(log.message)}</span>
+            `;
+            logContent.appendChild(logLine);
+        });
+        
+        // Update last updated time
+        document.getElementById('lastUpdated').textContent = 
+            logs[logs.length - 1].timestamp.split('T')[1].split('.')[0];
+    }
+    
+    // Auto-scroll to bottom if enabled and new logs were added
+    if (shouldScroll) {
+        const logContainer = document.getElementById('logContainer');
+        logContainer.scrollTop = logContainer.scrollHeight;
+    }
+    
+    lastLogCount = logs.length;
+}
+
+// Update statistics
+function updateStats(logs) {
+    document.getElementById('totalLogs').textContent = logs.length;
+    document.getElementById('logCount').textContent = logs.length;
+    
+    const errorCount = logs.filter(log => 
+        log.message.match(/error|failed|exception/i)
+    ).length;
+    document.getElementById('errorCount').textContent = errorCount;
+    
+    const successCount = logs.filter(log => 
+        log.message.match(/success|completed|applied/i)
+    ).length;
+    document.getElementById('successCount').textContent = successCount;
+}
+
+// Clear log display
+function clearLogs() {
+    const logContent = document.getElementById('logContent');
+    logContent.innerHTML = '<div class="text-muted p-3">Log display cleared. Logs will reappear on next refresh.</div>';
+}
+
+// Export logs
+function exportLogs() {
+    fetch('/api/logs')
+        .then(response => response.json())
+        .then(data => {
+            const logs = data.logs;
+            let logText = 'LinkedIn Easy Apply Bot - Log Export\n';
+            logText += 'Generated: ' + new Date().toISOString() + '\n';
+            logText += '='.repeat(50) + '\n\n';
+            
+            logs.forEach(log => {
+                logText += `[${log.timestamp}] ${log.message}\n`;
+            });
+            
+            const blob = new Blob([logText], { type: 'text/plain' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `linkedin_bot_logs_${new Date().toISOString().split('T')[0]}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        });
+}
+
+// Toggle fullscreen for log container
+function toggleFullscreen() {
+    const logContainer = document.getElementById('logContainer');
+    if (logContainer.style.height === '400px' || !logContainer.style.height) {
+        logContainer.style.height = '80vh';
+    } else {
+        logContainer.style.height = '400px';
+    }
+}
+
+// Start/Stop automation
+function startAutomation() {
+    window.location.href = '{{ url_for("start_automation") }}';
+}
+
+function stopAutomation() {
+    window.location.href = '{{ url_for("stop_automation") }}';
+}
+
+// Update uptime counter
+function updateUptime() {
+    const uptimeElement = document.querySelector('.uptime-counter');
+    if (uptimeElement) {
+        const startTime = new Date(uptimeElement.getAttribute('data-start'));
+        const now = new Date();
+        const diffSeconds = Math.floor((now - startTime) / 1000);
+        
+        const hours = Math.floor(diffSeconds / 3600);
+        const minutes = Math.floor((diffSeconds % 3600) / 60);
+        const seconds = diffSeconds % 60;
+        
+        uptimeElement.textContent = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }
+}
+
+// Escape HTML for security
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    startAutoRefresh();
+    
+    // Update uptime every second
+    setInterval(updateUptime, 1000);
+    
+    // Auto-refresh status every 5 seconds
+    setInterval(function() {
+        fetch('/api/status')
+            .then(response => response.json())
+            .then(data => {
+                const statusElement = document.getElementById('currentStatus');
+                const isRunning = data.running;
+                
+                statusElement.textContent = isRunning ? 'Active' : 'Inactive';
+                statusElement.className = isRunning ? 'text-success' : 'text-secondary';
+                
+                // Update start time if changed
+                if (data.start_time) {
+                    const startTimeElement = document.getElementById('startTime');
+                    const startTime = data.start_time.split('T');
+                    startTimeElement.innerHTML = `${startTime[0]}<br><small>${startTime[1].split('.')[0]}</small>`;
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching status:', error);
+            });
+    }, 5000);
+});
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', function() {
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+    }
+});
+</script>
+{% endblock %}

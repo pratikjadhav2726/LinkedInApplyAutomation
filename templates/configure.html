@@ -1,0 +1,494 @@
+{% extends "base.html" %}
+
+{% block title %}Configuration - LinkedIn Easy Apply Bot{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-gear"></i> Configuration</h2>
+    <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Back to Dashboard
+    </a>
+</div>
+
+<form method="POST" action="{{ url_for('save_config_route') }}" class="needs-validation" novalidate>
+    <!-- Account Credentials Section -->
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="bi bi-person-circle"></i> Account Credentials</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="email" class="form-label">LinkedIn Email *</label>
+                        <input type="email" class="form-control" id="email" name="email" 
+                               value="{{ config.email }}" required>
+                        <div class="form-text">Your LinkedIn login email address</div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="password" class="form-label">LinkedIn Password *</label>
+                        <input type="password" class="form-control" id="password" name="password" 
+                               value="{{ config.password }}" required>
+                        <div class="form-text">Your LinkedIn login password</div>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-12">
+                    <div class="mb-3">
+                        <label for="openaiApiKey" class="form-label">OpenAI API Key (Optional)</label>
+                        <input type="text" class="form-control" id="openaiApiKey" name="openaiApiKey" 
+                               value="{{ config.openaiApiKey }}">
+                        <div class="form-text">For AI-powered question answering. Leave blank to use default responses.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Job Search Preferences -->
+    <div class="card mb-4">
+        <div class="card-header bg-success text-white">
+            <h5 class="mb-0"><i class="bi bi-search"></i> Job Search Preferences</h5>
+        </div>
+        <div class="card-body">
+            <!-- General Settings -->
+            <div class="row mb-3">
+                <div class="col-md-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="remote" name="remote" 
+                               {% if config.remote %}checked{% endif %}>
+                        <label class="form-check-label" for="remote">Remote Jobs Only</label>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="lessthanTenApplicants" name="lessthanTenApplicants" 
+                               {% if config.lessthanTenApplicants %}checked{% endif %}>
+                        <label class="form-check-label" for="lessthanTenApplicants">Under 10 Applicants</label>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="newestPostingsFirst" name="newestPostingsFirst" 
+                               {% if config.newestPostingsFirst %}checked{% endif %}>
+                        <label class="form-check-label" for="newestPostingsFirst">Newest Postings First</label>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="residentStatus" name="residentStatus" 
+                               {% if config.residentStatus %}checked{% endif %}>
+                        <label class="form-check-label" for="residentStatus">Resident Status</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Distance -->
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label for="distance" class="form-label">Search Distance (miles)</label>
+                    <select class="form-select" id="distance" name="distance">
+                        <option value="0" {% if config.distance == 0 %}selected{% endif %}>0 miles</option>
+                        <option value="5" {% if config.distance == 5 %}selected{% endif %}>5 miles</option>
+                        <option value="10" {% if config.distance == 10 %}selected{% endif %}>10 miles</option>
+                        <option value="25" {% if config.distance == 25 %}selected{% endif %}>25 miles</option>
+                        <option value="50" {% if config.distance == 50 %}selected{% endif %}>50 miles</option>
+                        <option value="100" {% if config.distance == 100 %}selected{% endif %}>100 miles</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Experience Levels -->
+            <div class="mb-3">
+                <label class="form-label fw-bold">Experience Levels (Select all that apply)</label>
+                <div class="row">
+                    {% for level, value in config.experienceLevel.items() %}
+                    <div class="col-md-4 col-lg-2">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" 
+                                   id="exp_{{ level.replace(' ', '_').replace('-', '_') }}" 
+                                   name="exp_{{ level.replace(' ', '_').replace('-', '_') }}" 
+                                   {% if value %}checked{% endif %}>
+                            <label class="form-check-label" for="exp_{{ level.replace(' ', '_').replace('-', '_') }}">
+                                {{ level.title() }}
+                            </label>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Job Types -->
+            <div class="mb-3">
+                <label class="form-label fw-bold">Job Types (Select all that apply)</label>
+                <div class="row">
+                    {% for job_type, value in config.jobTypes.items() %}
+                    <div class="col-md-4 col-lg-2">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" 
+                                   id="job_{{ job_type.replace('-', '_') }}" 
+                                   name="job_{{ job_type.replace('-', '_') }}" 
+                                   {% if value %}checked{% endif %}>
+                            <label class="form-check-label" for="job_{{ job_type.replace('-', '_') }}">
+                                {{ job_type.title() }}
+                            </label>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Date Filter -->
+            <div class="mb-3">
+                <label class="form-label fw-bold">Job Posting Date (Select one)</label>
+                <div class="row">
+                    {% for date_option, value in config.date.items() %}
+                    <div class="col-md-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" 
+                                   id="date_{{ date_option.replace(' ', '_') }}" 
+                                   name="date_filter" 
+                                   value="{{ date_option }}"
+                                   {% if value %}checked{% endif %}>
+                            <label class="form-check-label" for="date_{{ date_option.replace(' ', '_') }}">
+                                {{ date_option.title() }}
+                            </label>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Positions and Locations -->
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="positions" class="form-label">Target Positions *</label>
+                        <textarea class="form-control" id="positions" name="positions" rows="4" 
+                                  placeholder="Software Engineer&#10;Data Scientist&#10;Product Manager&#10;Frontend Developer" required>{{ config.positions | join('\n') }}</textarea>
+                        <div class="form-text">Enter one position per line</div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="locations" class="form-label">Target Locations *</label>
+                        <textarea class="form-control" id="locations" name="locations" rows="4" 
+                                  placeholder="San Francisco, CA&#10;New York, NY&#10;Remote&#10;Austin, TX" required>{{ config.locations | join('\n') }}</textarea>
+                        <div class="form-text">Enter one location per line. First location must be a valid country.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Blacklists -->
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="companyBlacklist" class="form-label">Company Blacklist (Optional)</label>
+                        <textarea class="form-control" id="companyBlacklist" name="companyBlacklist" rows="3" 
+                                  placeholder="Company 1&#10;Company 2&#10;Company 3">{{ config.companyBlacklist | join('\n') }}</textarea>
+                        <div class="form-text">Companies to avoid applying to</div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="titleBlacklist" class="form-label">Title Blacklist (Optional)</label>
+                        <textarea class="form-control" id="titleBlacklist" name="titleBlacklist" rows="3" 
+                                  placeholder="Intern&#10;Senior Manager&#10;Director">{{ config.titleBlacklist | join('\n') }}</textarea>
+                        <div class="form-text">Job titles to avoid</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Personal Information -->
+    <div class="card mb-4">
+        <div class="card-header bg-info text-white">
+            <h5 class="mb-0"><i class="bi bi-person-badge"></i> Personal Information</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="pronouns" class="form-label">Pronouns</label>
+                        <input type="text" class="form-control" id="pronouns" name="pronouns" 
+                               value="{{ config.personalInfo['Pronouns'] }}">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="firstName" class="form-label">First Name *</label>
+                        <input type="text" class="form-control" id="firstName" name="firstName" 
+                               value="{{ config.personalInfo['First Name'] }}" required>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="lastName" class="form-label">Last Name *</label>
+                        <input type="text" class="form-control" id="lastName" name="lastName" 
+                               value="{{ config.personalInfo['Last Name'] }}" required>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="phoneCountryCode" class="form-label">Phone Country Code</label>
+                        <input type="text" class="form-control" id="phoneCountryCode" name="phoneCountryCode" 
+                               value="{{ config.personalInfo['Phone Country Code'] }}" 
+                               placeholder="Canada (+1)">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="mobilePhone" class="form-label">Mobile Phone Number</label>
+                        <input type="text" class="form-control" id="mobilePhone" name="mobilePhone" 
+                               value="{{ config.personalInfo['Mobile Phone Number'] }}">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="streetAddress" class="form-label">Street Address</label>
+                        <input type="text" class="form-control" id="streetAddress" name="streetAddress" 
+                               value="{{ config.personalInfo['Street address'] }}">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label for="city" class="form-label">City</label>
+                        <input type="text" class="form-control" id="city" name="city" 
+                               value="{{ config.personalInfo['City'] }}">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label for="state" class="form-label">State/Province</label>
+                        <input type="text" class="form-control" id="state" name="state" 
+                               value="{{ config.personalInfo['State'] }}">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="zip" class="form-label">ZIP/Postal Code</label>
+                        <input type="text" class="form-control" id="zip" name="zip" 
+                               value="{{ config.personalInfo['Zip'] }}">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="linkedin" class="form-label">LinkedIn Profile URL</label>
+                        <input type="url" class="form-control" id="linkedin" name="linkedin" 
+                               value="{{ config.personalInfo['Linkedin'] }}">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="website" class="form-label">Website/Portfolio</label>
+                        <input type="url" class="form-control" id="website" name="website" 
+                               value="{{ config.personalInfo['Website'] }}">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="messageToManager" class="form-label">Message to Hiring Manager</label>
+                <textarea class="form-control" id="messageToManager" name="messageToManager" rows="3">{{ config.personalInfo['MessageToManager'] }}</textarea>
+                <div class="form-text">Keep this message short and professional</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resume and Files -->
+    <div class="card mb-4">
+        <div class="card-header bg-warning text-dark">
+            <h5 class="mb-0"><i class="bi bi-file-earmark-text"></i> Resume and Files</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="resume" class="form-label">Resume File (PDF) *</label>
+                        <input type="text" class="form-control" id="resume" name="resume" 
+                               value="{{ config.uploads.resume }}" required>
+                        <div class="form-text">Path to your PDF resume file</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="textResume" class="form-label">Text Resume File</label>
+                        <input type="text" class="form-control" id="textResume" name="textResume" 
+                               value="{{ config.textResume }}">
+                        <div class="form-text">Plain text version of your resume</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="docxResume" class="form-label">DOCX Resume File</label>
+                        <input type="text" class="form-control" id="docxResume" name="docxResume" 
+                               value="{{ config.docxResume }}">
+                        <div class="form-text">Word document version for AI editing</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Professional Details -->
+    <div class="card mb-4">
+        <div class="card-header bg-secondary text-white">
+            <h5 class="mb-0"><i class="bi bi-award"></i> Professional Details</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="universityGpa" class="form-label">University GPA</label>
+                        <input type="number" class="form-control" id="universityGpa" name="universityGpa" 
+                               step="0.1" min="0" max="4.0" value="{{ config.universityGpa }}">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="salaryMinimum" class="form-label">Minimum Salary ($)</label>
+                        <input type="number" class="form-control" id="salaryMinimum" name="salaryMinimum" 
+                               value="{{ config.salaryMinimum }}">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="noticePeriod" class="form-label">Notice Period (weeks)</label>
+                        <input type="number" class="form-control" id="noticePeriod" name="noticePeriod" 
+                               value="{{ config.noticePeriod }}">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Features -->
+    <div class="card mb-4">
+        <div class="card-header bg-dark text-white">
+            <h5 class="mb-0"><i class="bi bi-cpu"></i> AI Features</h5>
+        </div>
+        <div class="card-body">
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="evaluateJobFit" name="evaluateJobFit" 
+                               {% if config.evaluateJobFit %}checked{% endif %}>
+                        <label class="form-check-label" for="evaluateJobFit">Evaluate Job Fit</label>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="tailorResume" name="tailorResume" 
+                               {% if config.tailorResume %}checked{% endif %}>
+                        <label class="form-check-label" for="tailorResume">Tailor Resume</label>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="debug" name="debug" 
+                               {% if config.debug %}checked{% endif %}>
+                        <label class="form-check-label" for="debug">Debug Mode</label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="modelName" class="form-label">AI Model</label>
+                <select class="form-select" id="modelName" name="modelName">
+                    <option value="groq/llama-3.3-70b-versatile" {% if config.modelName == 'groq/llama-3.3-70b-versatile' %}selected{% endif %}>Groq - Llama 3.3 70B</option>
+                    <option value="openai/gpt-4o" {% if config.modelName == 'openai/gpt-4o' %}selected{% endif %}>OpenAI - GPT-4o</option>
+                    <option value="openai/gpt-3.5-turbo" {% if config.modelName == 'openai/gpt-3.5-turbo' %}selected{% endif %}>OpenAI - GPT-3.5 Turbo</option>
+                    <option value="ollama/mistral" {% if config.modelName == 'ollama/mistral' %}selected{% endif %}>Ollama - Mistral</option>
+                    <option value="anthropic/claude-3-sonnet" {% if config.modelName == 'anthropic/claude-3-sonnet' %}selected{% endif %}>Anthropic - Claude 3 Sonnet</option>
+                </select>
+                <div class="form-text">Choose the AI model for question answering and resume tailoring</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Settings -->
+    <div class="card mb-4">
+        <div class="card-header bg-light text-dark">
+            <h5 class="mb-0"><i class="bi bi-tools"></i> System Settings</h5>
+        </div>
+        <div class="card-body">
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="disableAntiLock" name="disableAntiLock" 
+                       {% if config.disableAntiLock %}checked{% endif %}>
+                <label class="form-check-label" for="disableAntiLock">Disable Anti-Lock</label>
+                <div class="form-text">Prevent your PC from sleeping during automation</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Save Button -->
+    <div class="d-grid gap-2 d-md-flex justify-content-md-end mb-4">
+        <button type="submit" class="btn btn-gradient btn-lg px-5">
+            <i class="bi bi-save"></i> Save Configuration
+        </button>
+    </div>
+</form>
+
+<!-- Warning -->
+<div class="alert alert-danger" role="alert">
+    <h6 class="alert-heading"><i class="bi bi-shield-exclamation"></i> Security Warning</h6>
+    <p class="mb-0">
+        Your LinkedIn credentials and API keys will be saved in config.yaml. 
+        <strong>Keep this file secure and never share it or commit it to version control!</strong>
+    </p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Form validation
+(function() {
+    'use strict';
+    window.addEventListener('load', function() {
+        var forms = document.getElementsByClassName('needs-validation');
+        var validation = Array.prototype.filter.call(forms, function(form) {
+            form.addEventListener('submit', function(event) {
+                if (form.checkValidity() === false) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                form.classList.add('was-validated');
+            }, false);
+        });
+    }, false);
+})();
+
+// Date filter radio buttons logic
+document.addEventListener('DOMContentLoaded', function() {
+    const dateRadios = document.querySelectorAll('input[name="date_filter"]');
+    dateRadios.forEach(radio => {
+        radio.addEventListener('change', function() {
+            // Add hidden inputs for the date filter
+            const existingHidden = document.querySelectorAll('input[name^="date_"]');
+            existingHidden.forEach(input => input.remove());
+            
+            if (this.checked) {
+                const hiddenInput = document.createElement('input');
+                hiddenInput.type = 'hidden';
+                hiddenInput.name = 'date_' + this.value.replace(' ', '_');
+                hiddenInput.value = 'on';
+                this.form.appendChild(hiddenInput);
+            }
+        });
+    });
+});
+</script>
+{% endblock %}
