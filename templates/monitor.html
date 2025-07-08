@@ -210,13 +210,13 @@
                     <div class="col-md-3">
                         <h6 class="text-muted">Error Messages</h6>
                         <h4 id="errorCount" class="text-danger">
-                            {{ status.logs|selectattr('message', 'search', '[Ee]rror|[Ff]ailed|[Ee]xception')|list|length }}
+                            {{ status.logs|selectattr('message', 'match', '[Ee]rror|[Ff]ailed|[Ee]xception')|list|length }}
                         </h4>
                     </div>
                     <div class="col-md-3">
                         <h6 class="text-muted">Success Messages</h6>
                         <h4 id="successCount" class="text-success">
-                            {{ status.logs|selectattr('message', 'search', '[Ss]uccess|[Cc]ompleted|[Aa]pplied')|list|length }}
+                            {{ status.logs|selectattr('message', 'match', '[Ss]uccess|[Cc]ompleted|[Aa]pplied')|list|length }}
                         </h4>
                     </div>
                     <div class="col-md-3">

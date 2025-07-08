@@ -168,7 +168,7 @@
                     <div class="mb-3">
                         <label for="positions" class="form-label">Target Positions *</label>
                         <textarea class="form-control" id="positions" name="positions" rows="4" 
-                                  placeholder="Software Engineer&#10;Data Scientist&#10;Product Manager&#10;Frontend Developer" required>{{ config.positions | join('\n') }}</textarea>
+                                  placeholder="Software Engineer&#10;Data Scientist&#10;Product Manager&#10;Frontend Developer" required>{{ (config.positions or []) | join('\n') }}</textarea>
                         <div class="form-text">Enter one position per line</div>
                     </div>
                 </div>
@@ -176,7 +176,7 @@
                     <div class="mb-3">
                         <label for="locations" class="form-label">Target Locations *</label>
                         <textarea class="form-control" id="locations" name="locations" rows="4" 
-                                  placeholder="San Francisco, CA&#10;New York, NY&#10;Remote&#10;Austin, TX" required>{{ config.locations | join('\n') }}</textarea>
+                                  placeholder="San Francisco, CA&#10;New York, NY&#10;Remote&#10;Austin, TX" required>{{ (config.locations or []) | join('\n') }}</textarea>
                         <div class="form-text">Enter one location per line. First location must be a valid country.</div>
                     </div>
                 </div>
@@ -188,7 +188,7 @@
                     <div class="mb-3">
                         <label for="companyBlacklist" class="form-label">Company Blacklist (Optional)</label>
                         <textarea class="form-control" id="companyBlacklist" name="companyBlacklist" rows="3" 
-                                  placeholder="Company 1&#10;Company 2&#10;Company 3">{{ config.companyBlacklist | join('\n') }}</textarea>
+                                  placeholder="Company 1&#10;Company 2&#10;Company 3">{{ (config.companyBlacklist or []) | join('\n') }}</textarea>
                         <div class="form-text">Companies to avoid applying to</div>
                     </div>
                 </div>
@@ -196,7 +196,7 @@
                     <div class="mb-3">
                         <label for="titleBlacklist" class="form-label">Title Blacklist (Optional)</label>
                         <textarea class="form-control" id="titleBlacklist" name="titleBlacklist" rows="3" 
-                                  placeholder="Intern&#10;Senior Manager&#10;Director">{{ config.titleBlacklist | join('\n') }}</textarea>
+                                  placeholder="Intern&#10;Senior Manager&#10;Director">{{ (config.titleBlacklist or []) | join('\n') }}</textarea>
                         <div class="form-text">Job titles to avoid</div>
                     </div>
                 </div>

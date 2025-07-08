@@ -140,8 +140,8 @@
                         <div class="col-md-6">
                             <h6 class="fw-bold text-primary">Job Search</h6>
                             <ul class="list-unstyled">
-                                <li><strong>Positions:</strong> {{ config.positions|length }} configured</li>
-                                <li><strong>Locations:</strong> {{ config.locations|length }} configured</li>
+                                <li><strong>Positions:</strong> {{ (config.positions or [])|length }} configured</li>
+                                <li><strong>Locations:</strong> {{ (config.locations or [])|length }} configured</li>
                                 <li><strong>Remote Jobs:</strong> 
                                     {% if config.remote %}
                                         <span class="text-success">Enabled</span>

@@ -253,7 +253,7 @@ def index():
 def configure():
     """Configuration page"""
     config = load_config()
-    return render_template('configure.html', config=config)
+    return render_template('configure.html', config=config, status=automation_status)
 
 @app.route('/save_config', methods=['POST'])
 def save_config_route():
@@ -413,4 +413,4 @@ if __name__ == '__main__':
     print("📝 Configure your settings and start the automation!")
     print("="*50)
     
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True, host='0.0.0.0', port=5001)
