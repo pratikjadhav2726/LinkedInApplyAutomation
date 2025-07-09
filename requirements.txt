@@ -10,3 +10,6 @@ docx2pdf
 docx
 litellm
 PyPDF2
+sentence-transformers
+faiss-cpu
+numpy

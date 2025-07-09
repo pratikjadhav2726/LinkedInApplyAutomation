@@ -1,5 +1,5 @@
-import time, random, csv, pyautogui, os, re # Removed traceback here as it's added later
-import traceback # Added traceback
+import time, random, csv, pyautogui, os, re
+import traceback
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
@@ -11,30 +11,229 @@ from selenium.webdriver.support.ui import Select
 from datetime import date, datetime
 from itertools import product
 from pypdf import PdfReader
-import PyPDF2 # Added for PDF manipulation
+import PyPDF2
 import requests
-# from docx import Document # Removed docx import
-# from docx2pdf import convert # Removed docx2pdf import
 import json
 import ollama
 from litellm import completion
 from dotenv import load_dotenv
-load_dotenv()  # Load environment variables from .env file
-# import traceback # Ensure traceback is imported if used, it was added above.
+# Add new imports for RAG
+from sentence_transformers import SentenceTransformer
+import numpy as np
+import faiss
+from typing import List, Dict, Tuple
+
+load_dotenv()
 
 class AIResponseGenerator:
     def __init__(self, api_key, personal_info, experience, languages, resume_path, checkboxes, model_name, text_resume_path=None, debug=False):
         self.personal_info = personal_info
         self.experience = experience
         self.languages = languages
-        self.pdf_resume_path = resume_path # This will be used as input_pdf_path
+        self.pdf_resume_path = resume_path
         self.text_resume_path = text_resume_path
         self.checkboxes = checkboxes
         self._resume_content = None
         self._client = True
-        self.model_name = model_name  # Unified model name for LiteLLM
+        self.model_name = model_name
         self.debug = debug
-        self.resume_dir = resume_path # Initialize resume_dir, will be updated by tailor_resume_pdf
+        self.resume_dir = resume_path
+        
+        # Initialize RAG components
+        self._embedding_model = None
+        self._resume_chunks = None
+        self._chunk_embeddings = None
+        self._faiss_index = None
+        self._context_cache = {}
+        
+    @property
+    def embedding_model(self):
+        """Lazy load the embedding model"""
+        if self._embedding_model is None:
+            print("Loading embedding model...")
+            # Using a small, efficient model
+            self._embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+            print("Embedding model loaded successfully")
+        return self._embedding_model
+    
+    @property
+    def resume_chunks(self):
+        """Lazy load resume chunks"""
+        if self._resume_chunks is None:
+            self._resume_chunks = self._create_semantic_chunks()
+        return self._resume_chunks
+    
+    def _create_semantic_chunks(self, chunk_size=200, overlap=50) -> List[Dict]:
+        """Create semantic chunks from resume content"""
+        resume_text = self.resume_content
+        if not resume_text:
+            return []
+        
+        chunks = []
+        
+        # Split by common resume sections first
+        section_headers = [
+            'experience', 'education', 'skills', 'projects', 'certifications',
+            'summary', 'objective', 'achievements', 'publications', 'work experience',
+            'professional experience', 'technical skills', 'programming languages'
+        ]
+        
+        # Split into paragraphs and sections
+        paragraphs = [p.strip() for p in resume_text.split('\n\n') if p.strip()]
+        
+        current_section = "general"
+        for i, paragraph in enumerate(paragraphs):
+            # Check if this paragraph is a section header
+            is_header = any(header in paragraph.lower() for header in section_headers)
+            if is_header:
+                current_section = paragraph.lower()
+            
+            # Create chunks with context
+            words = paragraph.split()
+            for j in range(0, len(words), chunk_size - overlap):
+                chunk_words = words[j:j + chunk_size]
+                chunk_text = ' '.join(chunk_words)
+                
+                if len(chunk_text.strip()) > 50:  # Only include meaningful chunks
+                    chunks.append({
+                        'text': chunk_text,
+                        'section': current_section,
+                        'paragraph_index': i,
+                        'chunk_index': len(chunks)
+                    })
+        
+        # Add personal info as a special chunk
+        personal_chunk = f"Name: {self.personal_info['First Name']} {self.personal_info['Last Name']}, "
+        personal_chunk += f"Current Role: {self.experience.get('currentRole', 'AI Specialist')}, "
+        personal_chunk += f"Location: {self.personal_info['City']}, {self.personal_info['State']}, "
+        personal_chunk += f"Authorized to work in US: {'Yes' if self.checkboxes.get('legallyAuthorized') else 'No'}, "
+        personal_chunk += f"Skills: {', '.join(list(self.experience.keys())[:10])}, "
+        personal_chunk += f"Languages: {', '.join(f'{lang}: {level}' for lang, level in self.languages.items())}"
+        
+        chunks.insert(0, {
+            'text': personal_chunk,
+            'section': 'personal_info',
+            'paragraph_index': -1,
+            'chunk_index': -1
+        })
+        
+        print(f"Created {len(chunks)} semantic chunks from resume")
+        return chunks
+    
+    def _build_vector_index(self):
+        """Build FAISS index for semantic search"""
+        if self._faiss_index is not None:
+            return
+        
+        chunks = self.resume_chunks
+        if not chunks:
+            return
+        
+        print("Building vector index...")
+        # Get embeddings for all chunks
+        chunk_texts = [chunk['text'] for chunk in chunks]
+        embeddings = self.embedding_model.encode(chunk_texts, show_progress_bar=False)
+        
+        # Create FAISS index
+        dimension = embeddings.shape[1]
+        self._faiss_index = faiss.IndexFlatIP(dimension)  # Inner product for cosine similarity
+        
+        # Normalize embeddings for cosine similarity
+        faiss.normalize_L2(embeddings)
+        self._faiss_index.add(embeddings.astype('float32'))
+        
+        self._chunk_embeddings = embeddings
+        print(f"Vector index built with {len(chunks)} chunks")
+    
+    def _semantic_search(self, query: str, top_k: int = 5) -> List[Dict]:
+        """Perform semantic search on resume chunks"""
+        self._build_vector_index()
+        
+        if self._faiss_index is None or not self.resume_chunks:
+            return []
+        
+        # Encode query
+        query_embedding = self.embedding_model.encode([query], show_progress_bar=False)
+        faiss.normalize_L2(query_embedding)
+        
+        # Search
+        scores, indices = self._faiss_index.search(query_embedding.astype('float32'), top_k)
+        
+        # Return relevant chunks with scores
+        results = []
+        for score, idx in zip(scores[0], indices[0]):
+            if idx < len(self.resume_chunks):
+                chunk = self.resume_chunks[idx].copy()
+                chunk['relevance_score'] = float(score)
+                results.append(chunk)
+        
+        return results
+    
+    def _build_context_rag(self, query="", job_description="", max_tokens=2000):
+        """
+        Build focused context using semantic RAG
+        """
+        # Create cache key
+        cache_key = hash(query + job_description + str(max_tokens))
+        if cache_key in self._context_cache:
+            return self._context_cache[cache_key]
+        
+        context_parts = []
+        
+        # Always include personal info (it's the first chunk)
+        personal_chunk = self.resume_chunks[0] if self.resume_chunks else None
+        if personal_chunk:
+            context_parts.append(f"Personal Info: {personal_chunk['text']}")
+        
+        # Combine query and job description for search
+        search_query = f"{query} {job_description}".strip()
+        
+        if search_query:
+            # Perform semantic search
+            relevant_chunks = self._semantic_search(search_query, top_k=8)
+            
+            # Filter out personal info chunk (already included)
+            relevant_chunks = [chunk for chunk in relevant_chunks if chunk.get('chunk_index', 0) != -1]
+            
+            # Group by section and add most relevant content
+            sections_added = set()
+            total_chars = len(context_parts[0]) if context_parts else 0
+            
+            for chunk in relevant_chunks:
+                if total_chars >= max_tokens * 4:  # Rough token estimation
+                    break
+                
+                section = chunk['section']
+                chunk_text = chunk['text']
+                
+                # Add section header if new section
+                if section not in sections_added and section != 'general':
+                    section_header = f"\n{section.title().replace('_', ' ')}:"
+                    context_parts.append(section_header)
+                    sections_added.add(section)
+                    total_chars += len(section_header)
+                
+                # Add chunk content
+                context_parts.append(chunk_text)
+                total_chars += len(chunk_text)
+                
+                if self.debug:
+                    print(f"Added chunk (score: {chunk['relevance_score']:.3f}): {chunk_text[:100]}...")
+        
+        # Join context
+        context = "\n\n".join(context_parts)
+        
+        # Truncate if too long
+        if len(context) > max_tokens * 4:
+            context = context[:max_tokens * 4] + "..."
+        
+        # Cache the result
+        self._context_cache[cache_key] = context
+        
+        if self.debug:
+            print(f"Built RAG context with {len(context)} characters")
+        
+        return context
 
     @property
     def resume_content(self):
@@ -66,18 +265,9 @@ class AIResponseGenerator:
         return self._resume_content
 
     def _build_context(self):
-        return f"""
-        Personal Information:
-        - Name: {self.personal_info['First Name']} {self.personal_info['Last Name']}
-        - Current Role: {self.experience.get('currentRole', 'AI Specialist')}
-        - Current Location: {self.personal_info['City']}, {self.personal_info['State']}, United States
-        - Authorized to work in the US: {'Yes' if self.checkboxes.get('legallyAuthorized') else 'No'}
-        - Skills: {', '.join(self.experience.keys())}
-        - Languages: {', '.join(f'{lang}: {level}' for lang, level in self.languages.items())}
+        """Legacy method - now uses RAG by default"""
+        return self._build_context_rag()
 
-        Resume Content:
-        {self.resume_content}
-        """
     def get_tailored_skills_replacements(self, job_description):
         # Step 1: Extract top 10 technical skills from job description
         system_prompt_1 = (
@@ -226,32 +416,23 @@ class AIResponseGenerator:
 
     def generate_response(self, question_text, response_type="text", options=None, max_tokens=100, jd=""):
         """
-        Generate a response using OpenAI's API
-        
-        Args:
-            question_text: The application question to answer
-            response_type: "text", "numeric", or "choice"
-            options: For "choice" type, a list of tuples containing (index, text) of possible answers
-            max_tokens: Maximum length of response
-            
-        Returns:
-            - For text: Generated text response or None
-            - For numeric: Integer value or None
-            - For choice: Integer index of selected option or None
+        Generate a response using OpenAI's API with RAG-optimized context
         """
-        # if not self._client:
-        #     return None
-            
         try:
-            context = self._build_context()
-            # print(context)
+            # Use RAG context with job description
+            context = self._build_context_rag(
+                query=question_text, 
+                job_description=jd, 
+                max_tokens=1500
+            )
+            
             system_prompt = {
-                "text": "You are a helpful assistant answering job application questions professionally and short. Use the candidate's background information and resume to personalize responses. Pretend you are the candidate.Only give the answer if you are sure from background. Otherwise return NA.",
+                "text": "You are a helpful assistant answering job application questions professionally and short. Use the candidate's background information and resume to personalize responses. Pretend you are the candidate. Only give the answer if you are sure from background. Otherwise return NA.",
                 "numeric": "You are a helpful assistant providing numeric answers to job application questions. Based on the candidate's experience, provide a single number as your response. No explanation needed.",
                 "choice": "You are a helpful assistant selecting the most appropriate answer choice for job application questions. Based on the candidate's background, select the best option by returning only its index number. No explanation needed."
             }[response_type]
 
-            user_content = f"Using this candidate's background and resume:\n{context} JD{jd}\n\nPlease answer this job application question: {question_text}"
+            user_content = f"Using this candidate's background and resume:\n{context}\n\nPlease answer this job application question: {question_text}"
             if response_type == "choice" and options:
                 options_text = "\n".join([f"{idx}: {text}" for idx, text in options])
                 user_content += f"\n\nSelect the most appropriate answer by providing its index number from these options:\n{options_text}"
@@ -262,28 +443,23 @@ class AIResponseGenerator:
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_content}
                 ]
-                # max_tokens=max_tokens,
-                # temperature=0.7
             )
             
             answer = response.choices[0]['message']['content'].strip()
-            print(f"AI response: {answer}")  # TODO: Put logging behind a debug flag
+            print(f"AI response: {answer}")
             
             if response_type == "numeric":
-                # Extract first number from response
                 numbers = re.findall(r'\d+', answer)
                 if numbers:
                     return int(numbers[0])
                 return 0
             elif response_type == "choice":
-                # Extract the index number from the response
                 numbers = re.findall(r'\d+', answer)
                 if numbers and options:
                     index = int(numbers[0])
-                    # Ensure index is within valid range
                     if 0 <= index < len(options):
                         return index
-                return None  # Return None if the index is not within the valid range
+                return None
                 
             return answer
             
@@ -293,53 +469,36 @@ class AIResponseGenerator:
 
     def evaluate_job_fit(self, job_title, job_description):
         """
-        Given a job description and my current resume, evaluate whether this job is worth applying for based on a 50–60% alignment threshold.
-        
-        Args:
-            job_title: The title of the job posting
-            job_description: The full job description text
-            
-        Returns:
-            bool: True if should apply, False if should skip
+        Evaluate job fit using RAG for more focused comparison
         """
-        # if not self._client:
-        #     return True  # Proceed with application if AI not available
         try:
-            system_prompt=""" Given Job description summarize it in 120 words, focus on qualifications and years of experience and technical skills. Expertise needed"""
+            # First, get job summary
+            system_prompt = "Given Job description summarize it in 120 words, focus on qualifications and years of experience and technical skills. Expertise needed"
             response = completion(
                 model=self.model_name,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": f"Job: {job_title}\n{job_description}"}
                 ]
-                # max_tokens=250 if self.debug else 1,  # Allow more tokens when debug is enabled
-                # temperature=0.2  # Lower temperature for more consistent decisions
             )
             
-            job_description = response.choices[0]['message']['content'].strip()
-            # print(f"Job Summary: {job_description}")
+            job_summary = response.choices[0]['message']['content'].strip()
             time.sleep(random.uniform(2,4))
-        except Exception as e:
-            print(f"Error evaluating job fit: {str(e)}")
-            return True  # Proceed with application if evaluation fails
-        try:
-            context=self._build_context()
-            # print(context)
-            percent="80"
+            
+            # Use RAG to get relevant context for the job
+            context = self._build_context_rag(
+                query=f"{job_title} requirements qualifications", 
+                job_description=job_summary,
+                max_tokens=1200
+            )
+            
             system_prompt = """
-                Based on the candidate’s resume and the job description, respond with APPLY if the resume matches at least 85 percent of the required qualifications and experience. Otherwise, respond with SKIP.
+                Based on the candidate's resume and the job description, respond with APPLY if the resume matches at least 85 percent of the required qualifications and experience. Otherwise, respond with SKIP.
                 Only return APPLY or SKIP.
             """
-            #Consider the candidate's education level when evaluating whether they meet the core requirements. Having higher education than required should allow for greater flexibility in the required experience.
             
             if self.debug:
-                pass
-                # system_prompt += """
-                # You are in debug mode. Return a detailed explanation of your reasoning for each requirement.
-
-                # Return APPLY or SKIP followed by a brief explanation.
-
-                # Format response as: APPLY/SKIP: [brief reason]"""
+                system_prompt += """Return APPLY or SKIP followed by a brief explanation. Format response as: APPLY/SKIP: [brief reason]"""
             else:
                 system_prompt += """Return only APPLY or SKIP."""
 
@@ -347,19 +506,17 @@ class AIResponseGenerator:
                 model="groq/gemma2-9b-it",
                 messages=[
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": f"Job: {job_title}\n{job_description}\n\nCandidate:\n{context}"}
+                    {"role": "user", "content": f"Job: {job_title}\n{job_summary}\n\nCandidate:\n{context}"}
                 ],
                 temperature=0.9,
-                max_completion_tokens=250 if self.debug else 1,  # Allow more tokens when debug is enabled
-                # max_tokens=250 if self.debug else 1,  # Allow more tokens when debug is enabled
-                # temperature=0.2  # Lower temperature for more consistent decisions
+                max_completion_tokens=250 if self.debug else 1,
             )
             
             answer = response.choices[0]['message']['content'].strip()
             print(f"AI evaluation: {answer}")
             time.sleep(random.uniform(2,4))
-            return answer.upper().startswith('A')  # True for APPLY, False for SKIP
+            return answer.upper().startswith('A')
             
         except Exception as e:
             print(f"Error evaluating job fit: {str(e)}")
-            return True  # Proceed with application if evaluation fails
+            return True
