@@ -103,12 +103,16 @@ class AIResponseGenerator:
                     })
         
         # Add personal info as a special chunk
-        personal_chunk = f"Name: {self.personal_info['First Name']} {self.personal_info['Last Name']}, "
-        personal_chunk += f"Current Role: {self.experience.get('currentRole', 'AI Specialist')}, "
-        personal_chunk += f"Location: {self.personal_info['City']}, {self.personal_info['State']}, "
-        personal_chunk += f"Authorized to work in US: {'Yes' if self.checkboxes.get('legallyAuthorized') else 'No'}, "
-        personal_chunk += f"Skills: {', '.join(list(self.experience.keys())[:10])}, "
-        personal_chunk += f"Languages: {', '.join(f'{lang}: {level}' for lang, level in self.languages.items())}"
+        # Include all personal_info fields
+        personal_info_fields = ', '.join(f"{k}: {v}" for k, v in self.personal_info.items())
+        us_citizen = f"US Citizen: {'Yes' if self.checkboxes.get('USCitizen') else 'No'}"
+        require_visa = f"Require Visa: {'Yes' if self.checkboxes.get('requireVisa') else 'No'}"
+        authorized_us = f"Authorized to work in US: {'Yes' if self.checkboxes.get('legallyAuthorized') else 'No'}"
+        current_role = self.experience.get('currentRole', 'AI Specialist')
+        skills = f"Skills: {', '.join(list(self.experience.keys()))}"
+        languages = f"Languages: {', '.join(f'{lang}: {level}' for lang, level in self.languages.items())}"
+        
+        personal_chunk = f"{personal_info_fields}, {us_citizen}, {require_visa}, {authorized_us}, Current Role: {current_role}, {skills}, {languages}"
         
         chunks.insert(0, {
             'text': personal_chunk,
