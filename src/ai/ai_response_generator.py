@@ -442,7 +442,7 @@ class AIResponseGenerator:
                 user_content += f"\n\nSelect the most appropriate answer by providing its index number from these options:\n{options_text}"
 
             response = completion(
-                model="meta-llama/llama-4-scout-17b-16e-instruct",
+                model="groq/meta-llama/llama-4-maverick-17b-128e-instruct",
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_content}
