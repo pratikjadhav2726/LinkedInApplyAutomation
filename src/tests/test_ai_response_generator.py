@@ -13,7 +13,7 @@ except ImportError:
     class PdfReadError(Exception):
         pass
     PyPDF2 = MagicMock() # Mock PyPDF2 if not available
-    PyPDF2.errors.PdfReadError = PdfReadError
+    PyPDF2.errors.PdfReadError = PdfReadError # type: ignore
 
 
 from src.ai.ai_response_generator import AIResponseGenerator
@@ -29,6 +29,7 @@ class TestAIResponseGenerator(unittest.TestCase):
         self.mock_checkboxes = {'legallyAuthorized': True}
         self.mock_model_name = 'test-model'
         self.initial_resume_path = 'test_data/sample_resume.pdf' # Relative to project root for AIResponseGenerator
+        self.mock_eeo = {'gender': 'Male', 'race': 'Asian'}
 
         # Ensure a dummy directory exists for placing test resumes if any test actually writes one
         # For most tests, actual file IO for PDFs is mocked.
@@ -42,7 +43,8 @@ class TestAIResponseGenerator(unittest.TestCase):
             resume_path=self.initial_resume_path,
             checkboxes=self.mock_checkboxes,
             model_name=self.mock_model_name,
-            debug=True # Enable debug for more verbose logging if needed during tests
+            debug=True, # Enable debug for more verbose logging if needed during tests
+            eeo=self.mock_eeo
         )
         self.initial_resume_dir = self.generator.resume_dir
 
@@ -196,8 +198,9 @@ class TestAIResponseGenerator(unittest.TestCase):
     @patch('src.ai.ai_response_generator.datetime')
     @patch('src.ai.ai_response_generator.PyPDF2.PdfWriter')
     @patch('src.ai.ai_response_generator.PyPDF2.PdfReader')
+    @patch('src.ai.ai_response_generator.PdfReader')
     @patch('builtins.open', new_callable=mock_open)
-    def test_resume_content_reloads_after_tailoring(self, mock_file_open, mock_pdf_reader_cls, mock_pdf_writer_cls, mock_datetime):
+    def test_resume_content_reloads_after_tailoring(self, mock_file_open, mock_pypdf_reader_cls, mock_pypdf2_reader_cls, mock_pdf_writer_cls, mock_datetime):
         mock_datetime.now.return_value = self.fixed_datetime
 
         # --- Mocking for tailor_resume_pdf call (first use of PdfReader) ---
@@ -216,7 +219,8 @@ class TestAIResponseGenerator(unittest.TestCase):
         mock_content_pdf_reader_instance.pages = [mock_content_page]
 
         # Configure PdfReader to be called sequentially:
-        mock_pdf_reader_cls.side_effect = [mock_tailor_pdf_reader_instance, mock_content_pdf_reader_instance]
+        mock_pypdf2_reader_cls.return_value = mock_tailor_pdf_reader_instance
+        mock_pypdf_reader_cls.return_value = mock_content_pdf_reader_instance
 
         replacements = [{'old': 'OldSkill', 'new': 'NewSkill'}]
 
@@ -242,10 +246,13 @@ class TestAIResponseGenerator(unittest.TestCase):
         # Verify calls to PdfReader
         # First call was in tailor_resume_pdf with self.initial_resume_path
         # Second call was in resume_content property with expected_tailored_full_path
-        calls = mock_pdf_reader_cls.call_args_list
-        self.assertEqual(len(calls), 2)
-        self.assertEqual(calls[0].args[0], self.initial_resume_path)
-        self.assertEqual(calls[1].args[0], expected_tailored_full_path)
+        calls1 = mock_pypdf2_reader_cls.call_args_list
+        calls2 = mock_pypdf_reader_cls.call_args_list
+        self.assertEqual(len(calls1), 1)
+        self.assertEqual(len(calls2), 1)
+        self.assertEqual(calls1[0].args[0], self.initial_resume_path)
+        self.assertEqual(calls2[0].args[0], expected_tailored_full_path)
+
 
 if __name__ == '__main__':
     unittest.main()

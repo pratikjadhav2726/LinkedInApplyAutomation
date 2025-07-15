@@ -26,13 +26,14 @@ from typing import List, Dict, Tuple
 load_dotenv()
 
 class AIResponseGenerator:
-    def __init__(self, api_key, personal_info, experience, languages, resume_path, checkboxes, model_name, text_resume_path=None, debug=False):
+    def __init__(self, api_key, personal_info, experience, languages, resume_path, checkboxes, model_name, text_resume_path=None, debug=False, eeo=None):
         self.personal_info = personal_info
         self.experience = experience
         self.languages = languages
         self.pdf_resume_path = resume_path
         self.text_resume_path = text_resume_path
         self.checkboxes = checkboxes
+        self.eeo = eeo or {}
         self._resume_content = None
         self._client = True
         self.model_name = model_name
@@ -114,6 +115,10 @@ class AIResponseGenerator:
         
         personal_chunk = f"{personal_info_fields}, {us_citizen}, {require_visa}, {authorized_us}, Current Role: {current_role}, {skills}, {languages}"
         
+        if self.eeo:
+            eeo_info = ', '.join(f"{k}: {v}" for k, v in self.eeo.items())
+            personal_chunk += f", EEO Info: {eeo_info}"
+
         chunks.insert(0, {
             'text': personal_chunk,
             'section': 'personal_info',

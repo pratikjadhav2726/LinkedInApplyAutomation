@@ -59,7 +59,8 @@ class LinkedinEasyApply:
             checkboxes=self.checkboxes,
             text_resume_path=self.text_resume,
             debug=self.debug,
-            model_name=self.model_name
+            model_name=self.model_name,
+            eeo=self.eeo
         )
 
     def login(self):
