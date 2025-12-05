@@ -1,0 +1,9 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Question or Discussion
+    url: https://github.com/pratikjadhav2726/LinkedInEasyApplyBot/discussions
+    about: Ask questions or start a discussion
+  - name: Documentation
+    url: https://github.com/pratikjadhav2726/LinkedInEasyApplyBot#readme
+    about: Check the README and documentation
+

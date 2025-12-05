@@ -4,9 +4,14 @@ outputRemote.csv
 unprepared_questions.csv
 failed.csv
 output.csv
-config.yaml
+# Note: config.yaml is an example and should be committed
+# config.prod.yaml contains production secrets and should NOT be committed
 config.prod.yaml
 resume_update.py
+
+# Test data and temporary files
+test_data/
+CLEANUP_SUMMARY.md
 
 # Environment and secrets
 .env
@@ -55,6 +60,7 @@ venv.bak/
 # UV specific
 .uv_cache/
 uv.lock.bak
+# Note: uv.lock should be committed for reproducibility
 
 # IDEs and editors
 .idea/
@@ -118,10 +124,14 @@ logs/
 screenshots/
 *.csv
 *.xlsx
+# JSON files (but allow package.json and tsconfig.json if needed)
 *.json
-!sample_*.pdf
-!sample_*.docx
-!sample_*.txt
+!package.json
+!tsconfig.json
+# Allow sample files in examples directory
+!examples/sample_*.pdf
+!examples/sample_*.docx
+!examples/sample_*.txt
 
 # Backup files
 *.backup

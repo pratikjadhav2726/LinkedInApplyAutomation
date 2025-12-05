@@ -1,6 +1,6 @@
 [build-system]
-requires = ["uv>=0.4.0"]
-build-backend = "uv"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "linkedin-easy-apply-bot"
@@ -68,7 +68,7 @@ Repository = "https://github.com/pratikjadhav2726/LinkedInEasyApplyBot"
 Issues = "https://github.com/pratikjadhav2726/LinkedInEasyApplyBot/issues"
 
 [project.scripts]
-linkedin-bot = "main:main"
+linkedin-bot = "src.main:main"
 
 [tool.uv]
 dev-dependencies = [
@@ -106,7 +106,7 @@ line_length = 88
 known_first_party = ["src"]
 
 [tool.pytest.ini_options]
-testpaths = ["src/tests"]
+testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]

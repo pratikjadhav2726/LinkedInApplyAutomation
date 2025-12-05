@@ -78,12 +78,31 @@ context = self._build_context_rag(
 
 ## 📦 Getting Started
 
-1. Clone the repository
-2. Install dependencies using UV (project is now UV-native)
-3. Configure `config.yaml` with your details (LinkedIn credentials, resume path, etc.)
-4. Run the bot using your preferred driver (e.g., Chrome WebDriver)
-5. Ensure Ollama and the `phi4-mini` model are running locally
-6. Ensure you have Groq API Key in .env file.
+### Quick Start
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/pratikjadhav2726/LinkedInEasyApplyBot.git
+   cd LinkedInEasyApplyBot
+   ```
+
+2. **Install dependencies** (requires [uv](https://docs.astral.sh/uv/))
+   ```bash
+   uv sync --dev
+   ```
+
+3. **Configure the bot**
+   ```bash
+   cp examples/config.yaml.example config.yaml
+   # Edit config.yaml with your LinkedIn credentials and preferences
+   ```
+
+4. **Run the bot**
+   ```bash
+   uv run python src/main.py
+   ```
+
+For detailed setup instructions, see [docs/SETUP.md](docs/SETUP.md).
 
 ## 🚀 Installation & Usage with UV (Recommended)
 
