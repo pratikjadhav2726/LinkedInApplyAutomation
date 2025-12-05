@@ -79,7 +79,7 @@ context = self._build_context_rag(
 ## 📦 Getting Started
 
 1. Clone the repository
-2. Install dependencies using UV (recommended) or pip
+2. Install dependencies using UV (project is now UV-native)
 3. Configure `config.yaml` with your details (LinkedIn credentials, resume path, etc.)
 4. Run the bot using your preferred driver (e.g., Chrome WebDriver)
 5. Ensure Ollama and the `phi4-mini` model are running locally
@@ -99,11 +99,8 @@ This project uses [UV](https://docs.astral.sh/uv/) for fast and reliable depende
 git clone https://github.com/pratikjadhav2726/LinkedInEasyApplyBot.git
 cd LinkedInEasyApplyBot
 
-# Install all dependencies (including RAG dependencies)
-uv sync
-
-# Install additional RAG dependencies if needed
-uv add sentence-transformers faiss-cpu numpy
+# Install all dependencies (runtime + dev/test)
+uv sync --dev
 
 # Run the bot
 uv run python main.py
@@ -122,6 +119,9 @@ uv add numpy                 # For vector operations
 # Install dependencies
 uv sync
 
+# Install dependencies including dev/test groups
+uv sync --dev
+
 # Add a new dependency
 uv add package-name
 
@@ -136,6 +136,9 @@ uv run python main.py
 
 # Run with script entry point
 uv run linkedin-bot
+
+# Export pinned requirements (compatibility with legacy tools)
+uv export --frozen --no-dev > requirements.txt
 
 # Update dependencies
 uv lock --upgrade

@@ -1,3 +1,6 @@
+#
+# Managed by uv. Prefer `uv sync` for installation.
+# To refresh this file with pinned versions: UV_CACHE_DIR=.uv-cache uv export --no-dev --frozen > requirements.txt
 selenium
 pyautogui
 webdriver_manager
@@ -13,3 +16,5 @@ PyPDF2
 sentence-transformers
 faiss-cpu
 numpy
+python-dotenv
+requests
