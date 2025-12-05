@@ -662,13 +662,18 @@ class AIResponseGenerator:
 
             system_prompt = """
                 Based on the candidate's resume and the job description, respond with APPLY if the resume matches at least 85 percent of the required qualifications and experience. Otherwise, respond with SKIP.
-                Only return APPLY or SKIP.
+                
+                IMPORTANT: Always put your final decision (APPLY or SKIP) OUTSIDE and AFTER any reasoning tags. 
+                Format: <think>your reasoning here</think> APPLY
+                or: <think>your reasoning here</think> SKIP
+                
+                The decision must appear after the closing tag.
             """
 
             if self.debug:
-                system_prompt += """Return APPLY or SKIP followed by a brief explanation. Format response as: APPLY/SKIP: [brief reason]"""
+                system_prompt += """Return APPLY or SKIP followed by a brief explanation. Format response as: <think>reasoning</think> APPLY/SKIP: [brief reason]"""
             else:
-                system_prompt += """Return only APPLY or SKIP."""
+                system_prompt += """Return only: <think>reasoning</think> APPLY or <think>reasoning</think> SKIP"""
 
             response = completion(
                 model="groq/qwen/qwen3-32b",
@@ -680,23 +685,82 @@ class AIResponseGenerator:
                     },
                 ],
                 temperature=0.9,
-                max_completion_tokens=250 if self.debug else 1,
+                # Increase max tokens significantly to accommodate long reasoning tags + decision
+                # Models with <think> tags can generate very long reasoning, so we need ample space
+                max_completion_tokens=1500 if self.debug else 1000,
             )
 
             answer = response.choices[0]["message"]["content"].strip()
+            raw_answer = answer  # Keep original for logging
+            
+            # Check if response was truncated (common with long reasoning)
+            finish_reason = response.choices[0].get("finish_reason", "")
+            was_truncated = finish_reason == "length"  # Token limit reached
+            
+            # Handle reasoning tags - extract only the actual response
+            # Some models return responses in format: <tag>...</tag> Actual answer here
+            reasoning_tags = [
+                ("<think>", "</think>"),
+                ("<think>", "</think>"),
+            ]
+            
+            # First, try to extract decision from after the closing tag
+            decision_found = False
+            for open_tag, close_tag in reasoning_tags:
+                if open_tag in answer and close_tag in answer:
+                    # Extract text after the closing tag
+                    parts = answer.split(close_tag, 1)
+                    if len(parts) > 1:
+                        answer_after_tags = parts[1].strip()
+                        # Check if decision is in the text after tags
+                        answer_upper = answer_after_tags.upper()
+                        if "APPLY" in answer_upper:
+                            decision = "APPLY"
+                            decision_found = True
+                            answer = answer_after_tags
+                            break
+                        elif "SKIP" in answer_upper:
+                            decision = "SKIP"
+                            decision_found = True
+                            answer = answer_after_tags
+                            break
+                    break  # Only process one type of tag
+            
+            # If decision not found after tags, search the entire response
+            if not decision_found:
+                answer_upper = answer.upper()
+                if "APPLY" in answer_upper:
+                    decision = "APPLY"
+                elif "SKIP" in answer_upper:
+                    decision = "SKIP"
+                else:
+                    # Fallback: check if it starts with A (for APPLY) or S (for SKIP)
+                    # If truncated and no decision found, default to SKIP (safer)
+                    if was_truncated:
+                        decision = "SKIP"
+                        self.logger.warning(f"Response was truncated and no clear decision found. Defaulting to SKIP.")
+                    else:
+                        decision = "APPLY" if answer_upper.startswith("A") else "SKIP"
+            
+            # Warn if response was truncated
+            if was_truncated:
+                self.logger.warning(f"Response was truncated (finish_reason: {finish_reason}). Decision extracted: {decision}")
             
             # Log job fit evaluation
             log_message = f"\n{'='*80}\n"
             log_message += f"JOB FIT EVALUATION\n"
             log_message += f"Job Title: {job_title}\n"
             log_message += f"Job Description (first 300 chars): {job_description[:300]}...\n"
-            log_message += f"AI Evaluation: {answer}\n"
+            log_message += f"AI Evaluation (raw): {response.choices[0]['message']['content'].strip()}\n"
+            log_message += f"AI Evaluation (cleaned): {answer}\n"
+            log_message += f"Decision: {decision}\n"
             log_message += f"{'='*80}\n"
             
             self.logger.info(log_message)
             print(f"AI evaluation: {answer}")
+            print(f"Decision: {decision}")
             time.sleep(random.uniform(2, 4))
-            return answer.upper().startswith("A")
+            return decision == "APPLY"
 
         except Exception as e:
             error_msg = f"Error evaluating job fit: {str(e)}\nJob Title: {job_title}"
