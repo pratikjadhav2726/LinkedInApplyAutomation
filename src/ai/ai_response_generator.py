@@ -1,5 +1,6 @@
 import csv
 import json
+import logging
 import os
 import random
 import re
@@ -7,6 +8,7 @@ import time
 import traceback
 from datetime import date, datetime
 from itertools import product
+from pathlib import Path
 from typing import Dict, List, Tuple
 
 import faiss
@@ -65,6 +67,10 @@ class AIResponseGenerator:
         self._chunk_embeddings = None
         self._faiss_index = None
         self._context_cache = {}
+        self._last_ai_response_text = None  # Store last AI response text for CSV
+        
+        # Setup logging for AI responses
+        self._setup_logging()
 
     @property
     def embedding_model(self):
@@ -82,6 +88,44 @@ class AIResponseGenerator:
         if self._resume_chunks is None:
             self._resume_chunks = self._create_semantic_chunks()
         return self._resume_chunks
+
+    def _setup_logging(self):
+        """Setup file logging for AI responses"""
+        # Create output directory if it doesn't exist
+        output_dir = Path("output")
+        output_dir.mkdir(exist_ok=True)
+        
+        # Create logger
+        self.logger = logging.getLogger("AIResponseGenerator")
+        self.logger.setLevel(logging.INFO)
+        
+        # Remove existing handlers to avoid duplicates
+        self.logger.handlers.clear()
+        
+        # File handler for AI responses
+        log_file = output_dir / "ai_responses.log"
+        file_handler = logging.FileHandler(log_file, mode='a', encoding='utf-8')
+        file_handler.setLevel(logging.INFO)
+        
+        # Console handler
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.INFO)
+        
+        # Formatter
+        formatter = logging.Formatter(
+            '%(asctime)s - %(levelname)s - %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S'
+        )
+        file_handler.setFormatter(formatter)
+        console_handler.setFormatter(formatter)
+        
+        # Add handlers
+        self.logger.addHandler(file_handler)
+        self.logger.addHandler(console_handler)
+        
+        self.logger.info("=" * 80)
+        self.logger.info("AI Response Generator initialized")
+        self.logger.info("=" * 80)
 
     def _create_semantic_chunks(self, chunk_size=200, overlap=50) -> List[Dict]:
         """Create semantic chunks from resume content"""
@@ -522,7 +566,7 @@ class AIResponseGenerator:
                 user_content += f"\n\nSelect the most appropriate answer by providing its index number from these options:\n{options_text}"
 
             response = completion(
-                model="meta-llama/llama-4-scout-17b-16e-instruct",
+                model="groq/openai/gpt-oss-120b",
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_content},
@@ -530,7 +574,45 @@ class AIResponseGenerator:
             )
 
             answer = response.choices[0]["message"]["content"].strip()
+            
+            # Handle reasoning tags - extract only the actual response
+            # Some models return responses in format: <tag>...</tag> Actual answer here
+            # Handle both <think> and <think> tags used by different models
+            reasoning_tags = [
+                ("<think>", "</think>"),
+                ("<think>", "</think>"),
+            ]
+            
+            for open_tag, close_tag in reasoning_tags:
+                if open_tag in answer and close_tag in answer:
+                    # Extract text after the closing tag
+                    parts = answer.split(close_tag, 1)
+                    if len(parts) > 1:
+                        answer = parts[1].strip()
+                    else:
+                        # Fallback: remove the tags if format is unexpected
+                        answer = re.sub(f'{re.escape(open_tag)}.*?{re.escape(close_tag)}', '', answer, flags=re.DOTALL).strip()
+                    break  # Only process one type of tag
+            
+            # Store original answer for CSV logging (before cleaning)
+            original_answer = answer
+            
+            # Log AI response to file and console
+            log_message = f"\n{'='*80}\n"
+            log_message += f"Question Type: {response_type}\n"
+            log_message += f"Question: {question_text}\n"
+            if options:
+                log_message += f"Options: {options}\n"
+            if jd:
+                log_message += f"Job Description Context: {jd[:200]}...\n"
+            log_message += f"AI Response (cleaned): {answer}\n"
+            log_message += f"{'='*80}\n"
+            
+            self.logger.info(log_message)
             print(f"AI response: {answer}")
+
+            # Store original answer as attribute for CSV logging
+            self._last_ai_response_text = original_answer
 
             if response_type == "numeric":
                 numbers = re.findall(r"\d+", answer)
@@ -548,6 +630,8 @@ class AIResponseGenerator:
             return answer
 
         except Exception as e:
+            error_msg = f"Error using AI to generate response: {str(e)}\nQuestion: {question_text}\nResponse Type: {response_type}"
+            self.logger.error(error_msg)
             print(f"Error using AI to generate response: {str(e)}")
             return None
 
@@ -587,7 +671,7 @@ class AIResponseGenerator:
                 system_prompt += """Return only APPLY or SKIP."""
 
             response = completion(
-                model="groq/gemma2-9b-it",
+                model="groq/qwen/qwen3-32b",
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {
@@ -600,10 +684,22 @@ class AIResponseGenerator:
             )
 
             answer = response.choices[0]["message"]["content"].strip()
+            
+            # Log job fit evaluation
+            log_message = f"\n{'='*80}\n"
+            log_message += f"JOB FIT EVALUATION\n"
+            log_message += f"Job Title: {job_title}\n"
+            log_message += f"Job Description (first 300 chars): {job_description[:300]}...\n"
+            log_message += f"AI Evaluation: {answer}\n"
+            log_message += f"{'='*80}\n"
+            
+            self.logger.info(log_message)
             print(f"AI evaluation: {answer}")
             time.sleep(random.uniform(2, 4))
             return answer.upper().startswith("A")
 
         except Exception as e:
+            error_msg = f"Error evaluating job fit: {str(e)}\nJob Title: {job_title}"
+            self.logger.error(error_msg)
             print(f"Error evaluating job fit: {str(e)}")
             return True

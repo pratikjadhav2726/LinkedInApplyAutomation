@@ -846,11 +846,13 @@ class LinkedinEasyApply:
                         to_select = radio_labels[ai_response]
                     else:
                         to_select = radio_labels[len(radio_labels) - 1]
+                    # Use original AI response text for CSV, not parsed index
+                    ai_response_text = getattr(self.ai_response_generator, '_last_ai_response_text', str(ai_response) if ai_response is not None else '')
                     record_unprepared_question(
                         self.unprepared_questions_file_name,
                         "radio",
                         radio_text,
-                        ai_response,
+                        ai_response_text,
                     )
                 to_select.click()
 
@@ -907,11 +909,13 @@ class LinkedinEasyApply:
                             if ai_response is not None
                             else int(self.experience_default)
                         )
+                        # Use original AI response text for CSV, not parsed number
+                        ai_response_text = getattr(self.ai_response_generator, '_last_ai_response_text', str(ai_response) if ai_response is not None else '')
                         record_unprepared_question(
                             self.unprepared_questions_file_name,
                             text_field_type,
                             question_text,
-                            ai_response,
+                            ai_response_text,
                         )
                     to_enter = no_of_years
 
@@ -983,22 +987,26 @@ class LinkedinEasyApply:
                         ai_response = self.ai_response_generator.generate_response(
                             question_text, response_type="numeric"
                         )
+                        # Use original AI response text for CSV, not parsed number
+                        ai_response_text = getattr(self.ai_response_generator, '_last_ai_response_text', str(ai_response) if ai_response is not None else '')
                         record_unprepared_question(
                             self.unprepared_questions_file_name,
                             text_field_type,
                             question_text,
-                            ai_response,
+                            ai_response_text,
                         )
                         to_enter = ai_response if ai_response is not None else 0
                 elif to_enter == "":
                     ai_response = self.ai_response_generator.generate_response(
                         question_text, response_type="text"
                     )
+                    # Use original AI response text for CSV
+                    ai_response_text = getattr(self.ai_response_generator, '_last_ai_response_text', ai_response if ai_response is not None else '')
                     record_unprepared_question(
                         self.unprepared_questions_file_name,
                         text_field_type,
                         question_text,
-                        ai_response,
+                        ai_response_text,
                     )
                     to_enter = ai_response if ai_response is not None else " ‏‏‎ "
 
@@ -1297,11 +1305,13 @@ class LinkedinEasyApply:
                     ai_response = self.ai_response_generator.generate_response(
                         question_text, response_type="choice", options=choices
                     )
+                    # Use original AI response text for CSV, not parsed index
+                    ai_response_text = getattr(self.ai_response_generator, '_last_ai_response_text', str(ai_response) if ai_response is not None else '')
                     record_unprepared_question(
                         self.unprepared_questions_file_name,
                         "dropdown",
                         question_text,
-                        ai_response,
+                        ai_response_text,
                     )
                     if ai_response is not None:
                         choice = options[ai_response]
