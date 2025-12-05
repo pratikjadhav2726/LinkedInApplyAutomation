@@ -1,4 +1,5 @@
 import os
+import warnings
 from pathlib import Path
 
 import yaml
@@ -7,6 +8,9 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from validate_email import validate_email
 from webdriver_manager.chrome import ChromeDriverManager
+
+# Suppress Pydantic serialization warnings from LiteLLM
+warnings.filterwarnings("ignore", category=UserWarning, module="pydantic")
 
 from src.bot.linkedin_easy_apply import LinkedinEasyApply
 

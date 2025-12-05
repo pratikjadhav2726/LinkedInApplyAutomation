@@ -6,6 +6,7 @@ import random
 import re
 import time
 import traceback
+import warnings
 from datetime import date, datetime
 from itertools import product
 from pathlib import Path
@@ -20,6 +21,9 @@ import requests
 from dotenv import load_dotenv
 from litellm import completion
 from pypdf import PdfReader
+
+# Suppress Pydantic serialization warnings from LiteLLM
+warnings.filterwarnings("ignore", category=UserWarning, module="pydantic")
 from selenium.common.exceptions import (
     NoSuchElementException,
     StaleElementReferenceException,
